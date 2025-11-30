@@ -1,10 +1,11 @@
-const { Client, GatewayIntentBits, Collection, EmbedBuilder, REST, Routes } = require('discord.js');
-const db = require('croxydb');
-const fs = require('fs');
-const path = require('path');
-const config = require('./config.js');
+// index.js
+import { Client, GatewayIntentBits, Collection, EmbedBuilder, REST, Routes } from 'discord.js';
+import db from 'croxydb';
+import fs from 'fs';
+import path from 'path';
+import config from './config.js';
 
-const { TextDisplayBuilder } = require('discord.js');
+import { TextDisplayBuilder } from 'discord.js';
 console.log(typeof TextDisplayBuilder);
 
 const client = new Client({
@@ -31,7 +32,7 @@ const CacheType = {
   Member: (guild) => guild?.members.cache,
 };
 
-function getCache({ cacheType, id, guild }) { // discord.gg/vsc ❤️ oxyinc
+function getCache({ cacheType, id, guild }) {
   if (!id) {
     const message = `Beklenen "${cacheType}" ID değeri sağlanmadı.`;
     logger.error(message);
@@ -78,27 +79,25 @@ function BaseEmbed() {
 client.commands = new Collection();
 const commands = [];
 
-const commandsPath = path.join(__dirname, 'komutlar');
+const commandsPath = path.join('./komutlar');
 const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
 
 for (const file of commandFiles) {
-  const filePath = path.join(commandsPath, file);
-  const command = require(filePath);
+  const { default: command } = await import(`./komutlar/${file}`);
   if ('data' in command && 'execute' in command) {
     client.commands.set(command.data.name, command);
     commands.push(command.data.toJSON());
     logger.info(`Komut yüklendi: ${command.data.name}`);
   } else {
-    logger.warn(`Komut ${filePath} gerekli "data" veya "execute" özelliğine sahip değil.`);
+    logger.warn(`Komut ./komutlar/${file} gerekli "data" veya "execute" özelliğine sahip değil.`);
   }
 }
 
-const eventsPath = path.join(__dirname, 'eventler');
+const eventsPath = path.join('./eventler');
 const eventFiles = fs.readdirSync(eventsPath).filter(file => file.endsWith('.js'));
 
 for (const file of eventFiles) {
-  const filePath = path.join(eventsPath, file);
-  const event = require(filePath);
+  const { default: event } = await import(`./eventler/${file}`);
   if (event.once) {
     client.once(event.name, (...args) => event.execute(client, db, logger, getCache, BaseEmbed, config, ...args));
   } else {
@@ -123,7 +122,7 @@ async function deployCommands() {
   }
 }
 
-client.on('interactionCreate', async interaction => { // discord.gg/vsc ❤️ oxyinc
+client.on('interactionCreate', async interaction => {
   if (!interaction.isChatInputCommand()) return;
   
   const command = client.commands.get(interaction.commandName);
